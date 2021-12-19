@@ -53,6 +53,17 @@
 #define IOCTL_GET_TONE _IOW('b', 0x0d, int)
 #define IOCTL_GET_VOLUME _IOW('b', 0x0e, int)
 
+float dist_obj=20;
+float dist_obj_prev=20;
+int flag_heart_normal = 1;
+int flag_calc  = 0;
+int flag_motor = 0;
+int front_vehicle_speed = 20;
+int ego_vehicle_speed = 20;
+float thres_dis;
+int alpha = 0.9;
+int servo_flag = 0;
+
 int gpio_export(unsigned int gpio);
 int gpio_unexport(unsigned int gpio);
 int gpio_set_dir(unsigned int gpio, int value);
@@ -61,16 +72,6 @@ int gpio_read_value(unsigned int gpio);
 long freqToTone(double freq);
 void playTone(long tone, int volume, int time);
 void Servo(unsigned int Servo, signed int angle);
-
-float dist_obj=20;
-float dist_obj_prev=20;
-int flag_heart_normal = 1;
-int flag_calc  = 0;
-int flag_motor = 0;
-int front_vehicle_speed = 20;
-int ego_vehicle_speed = 25;
-float thres_dis;
-int alpha = 0.9;
 
 long freqToTone(double freq) {
     double tone;
@@ -234,7 +235,7 @@ void *Calculate_Dist(void *arg){
 void *MotorDrive(void *arg){
     unsigned int motor_a = MOTOR_A;
     unsigned int motor_b = MOTOR_B;
-    int Value;
+
     gpio_export(motor_a);
     gpio_export(motor_b);
 
@@ -243,60 +244,60 @@ void *MotorDrive(void *arg){
 
     gpio_set_value(motor_a, 1);
     gpio_set_value(motor_b, 0);
-    unsigned int servo = SERVO1;
-    float dist_obj_copied;
     unsigned int a;
-    int i;
-    long freq = 880;
 
     while(1){
-        thres_dis = ((front_vehicle_speed - ego_vehicle_speed)*1.6 + pow(ego_vehicle_speed,2)/(2*0.8*9.81))/3;
+        int Value = 800 + (ego_vehicle_speed-20)*40;
         if (flag_motor == 0){
-            dist_obj_copied = dist_obj;
-            flag_motor = 1;
-            if((flag_heart_normal == 0) && (dist_obj_copied < thres_dis)){
-                // 내 차 속도 25m/s → 90km/h, TTC 1.6sec, 상대 차량 다가오는 속도 5m/s
-                // 초음파 센서 거리를 고려하여 31.85m를 3분의 1로 축소
-                // led 점등
+            if((flag_heart_normal == 0) && (dist_obj>thres_dis)){
+
                 gpio_set_value(LED_HOME, 1);
-                for(a=800; a>-1; a--)
+
+                for(a=Value; a>-1; a--)
                 {
                     gpio_set_value(motor_a, 1);
                     usleep(a);
                     gpio_set_value(motor_a, 0);
                 }
-            }
-            else if((flag_heart_normal == 0)&&(dist_obj_copied>thres_dis)){
-                gpio_set_value(LED_HOME, 0);
-                Value = 800;
-                // buzzer 삽입
-                for (i=0; i<50; i=i+5){
-                    Servo(servo, i);
-                    playTone(freq, 25000, 100 * 1000);
-                    gpio_set_value(motor_a, 1);
-                }
-                for (i=50; i>-1; i=i-5){
-                    Servo(servo, i);
-                    playTone(freq, 25000, 100 * 1000);
-                    gpio_set_value(motor_a, 1);
-                }
-                gpio_set_value(LED_HOME, 1);
-                gpio_set_value(motor_a, 0);
-                usleep(10000);
+                servo_flag = 0;
+                flag_motor = 1;
             }
             else{
-                Value = 800;
+
                 gpio_set_value(LED_HOME, 0);
-                for(a=0; a<30; a++)
+                for(a=0; a<5; a++)
                 {
                     gpio_set_value(motor_a, 1);
                     usleep(Value);
                     gpio_set_value(motor_a, 0);
                 }
             }
-
             usleep(200);
-            flag_motor = 0;
+        }
+    }
+}
+
+void *Servo_cont(void *arg){
+    unsigned int servo = SERVO1;
+    int i;
+    long freq = 880;
+
+
+    while(1){
+        thres_dis = ((front_vehicle_speed - ego_vehicle_speed)*1.6 + pow(ego_vehicle_speed,2)/(2*0.8*9.81))/3;
+
+        if((flag_heart_normal == 0)&&(dist_obj<thres_dis)&&(servo_flag == 1)){
+            gpio_set_value(LED_HOME, 0);
+            // buzzer 삽입
+            for (i=0; i<50; i=i+5){
+                Servo(servo, -i);
+                playTone(freq, 25000, 100 * 1000);
+            }
+            for (i=50; i>-1; i=i-5){
+                Servo(servo, -i);
+                playTone(freq, 25000, 100 * 1000);
+            }
+            usleep(100000);
         }
     }
 }
@@ -304,7 +305,7 @@ void *MotorDrive(void *arg){
 void Servo(unsigned int Servo, signed int angle)
 {
     unsigned int value;
-    unsigned int a, i;
+    unsigned int a;
 
     /* Set PWM */
     gpio_export(Servo);
@@ -325,7 +326,7 @@ int main(int argc, char *argv[]){
     MainWindow w;
     w.show();
 
-    pthread_t thread_1, thread_2;
+    pthread_t thread_1, thread_2, thread_3;
     int led[3] = {LED_BACK, LED_HOME, LED_MENU};
 
     // LED initialize
@@ -341,6 +342,7 @@ int main(int argc, char *argv[]){
     // thread run
     pthread_create(&thread_1, NULL, Calculate_Dist, (void *)NULL);
     pthread_create(&thread_2, NULL, MotorDrive, (void *)NULL);
+    pthread_create(&thread_3, NULL, Servo_cont, (void *)NULL);
 
     return a.exec();
 }

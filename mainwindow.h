@@ -20,14 +20,13 @@ public:
 
 private slots:
 
-
+    void PrintLCD();
     void on_pushButton_clicked();
     void on_pushButton_2_clicked();
-    void PrintLCD();
-
     void on_pushButton_3_clicked();
-
     void on_pushButton_4_clicked();
+    void on_pushButton_5_clicked();
+    void on_pushButton_6_clicked();
 
 private:
     Ui::MainWindow *ui;
@@ -36,5 +35,8 @@ private:
 extern float dist_obj;
 extern int flag_heart_normal;
 extern int front_vehicle_speed;
+extern int ego_vehicle_speed;
 extern float thres_dis;
+extern int servo_flag;
+extern int flag_motor;
 #endif // MAINWINDOW_H

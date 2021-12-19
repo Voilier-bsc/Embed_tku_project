@@ -8,6 +8,7 @@
 
 float display_dist;
 float display_front_vehicle_speed;
+float display_ego_vehicle_speed;
 float display_thres_dis;
 QString danger;
 
@@ -34,6 +35,8 @@ void MainWindow::on_pushButton_clicked()
 void MainWindow::on_pushButton_2_clicked()
 {
     flag_heart_normal = 1;
+    servo_flag = 1;
+    flag_motor = 0;
 }
 
 void MainWindow::PrintLCD()
@@ -46,6 +49,8 @@ void MainWindow::PrintLCD()
     QString str3 = QString::number(display_front_vehicle_speed);
     display_thres_dis = floor(3*thres_dis * 100) / 100;
     QString str4 = QString::number(display_thres_dis);
+    display_ego_vehicle_speed = floor(3.6*ego_vehicle_speed * 10) / 10;
+    QString str5 = QString::number(display_ego_vehicle_speed);
 
     if(flag_heart_normal == 0){
         danger = "dangerous!!!";
@@ -68,6 +73,7 @@ void MainWindow::PrintLCD()
     ui->LCD_2->display(str2);
     ui->LCD_3->display(str3);
     ui->LCD_4->display(str4);
+    ui->LCD_5->display(str5);
 
 }
 
@@ -80,4 +86,14 @@ void MainWindow::on_pushButton_3_clicked()
 void MainWindow::on_pushButton_4_clicked()
 {
     front_vehicle_speed = front_vehicle_speed - 1;
+}
+
+void MainWindow::on_pushButton_5_clicked()
+{
+    ego_vehicle_speed = ego_vehicle_speed + 1;
+}
+
+void MainWindow::on_pushButton_6_clicked()
+{
+    ego_vehicle_speed = ego_vehicle_speed - 1;
 }
